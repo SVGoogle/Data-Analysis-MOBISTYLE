@@ -3,4 +3,4 @@
 # Except this file
 !.gitignore
 # Except folders
-!*/Documentation
+!/Documentation
