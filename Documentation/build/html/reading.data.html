@@ -1,0 +1,444 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Reading Data &#8212; MOBISTYLE 0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Loading data" href="loading.data.html" />
+    <link rel="prev" title="Code blocks" href="code.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="reading-data">
+<span id="id1"></span><h1>Reading Data<a class="headerlink" href="#reading-data" title="Permalink to this headline">¶</a></h1>
+<p>The following Python scripts and functions are used to create data files for each of the mentioned data source types:</p>
+<ul class="simple">
+<li>Python scripts <code class="docutils literal notranslate"><span class="pre">read_SCADA.py</span></code> and <code class="docutils literal notranslate"><span class="pre">read_SCADA_missing.py</span></code></li>
+<li>Python script <code class="docutils literal notranslate"><span class="pre">read_INAP.py</span></code></li>
+<li>Python function <code class="docutils literal notranslate"><span class="pre">read_expert_tool_data(room_name)</span></code></li>
+</ul>
+<div class="section" id="scada-data">
+<h2>SCADA data<a class="headerlink" href="#scada-data" title="Permalink to this headline">¶</a></h2>
+<p>Download <a class="reference download internal" download="" href="_downloads/714073ece5185b6dfb49f6d7b1029afc/read_SCADA.py"><code class="xref download docutils literal notranslate"><span class="pre">read_SCADA.py</span></code></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">contextmanager</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="k">import</span> <span class="n">tqdm</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This script is a part of the MOBISTYLE project (2018-2020), namely first step before data analysis for Deliverable D6.2 </span>
+<span class="sd">at Slovenian demonstration. This script reads the csv files from &#39;SCADA_data&#39; directory. These files are gathered from </span>
+<span class="sd">SFTP server at IRI-UL demo site, contact IRI-UL for further information. </span>
+<span class="sd">Resulting pandas DataFrame is converted to csv file. </span>
+<span class="sd">It is further used to analyse and plot figures, see file &#39;Data Analysis, Slovenia.ipynb&#39;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">change_dir</span><span class="p">(</span><span class="n">destination</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This f-n reads the subfolder path and then returns back to current working directory (cwd).</span>
+<span class="sd">    Args: </span>
+<span class="sd">        destination (str): Subfolder name (that is located in cwd)</span>
+<span class="sd">    Returns: </span>
+<span class="sd">        Location is returned back to cwd after desired computations are completed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">cwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">cwd</span><span class="p">)</span>
+
+
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+
+<span class="c1"># Read file paths for files in &#39;SCADA_data&#39; directory</span>
+<span class="n">file_paths</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">with</span> <span class="n">change_dir</span><span class="p">(</span><span class="s1">&#39;SCADA_data&#39;</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;**/*.csv&#39;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="c1"># read .csv file paths from sub folder</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="n">file_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;File paths are gathered. Converting to DataFrame...&#39;</span><span class="p">)</span>
+
+<span class="c1"># Convert data to DataFrame format and create a list</span>
+<span class="n">df_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">na_values</span><span class="o">=</span><span class="s1">&#39;Bad&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;File(s) completed&#39;</span><span class="p">)]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">DataFrame list is created. Concatenating...&#39;</span><span class="p">)</span>
+
+<span class="c1"># Concatenate DFs</span>
+<span class="n">frames</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">df_list</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Create datetime index</span>
+<span class="n">frames</span><span class="p">[</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">frames</span><span class="p">[</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">])</span>
+<span class="n">frames</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">frames</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
+
+<span class="c1"># Files folder (data for each room)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./Files&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./Files/SCADA_files&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Save data as one .csv file</span>
+<span class="n">frames</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;./Files/SCADA_files/SCADA_SI.csv&#39;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">SCADA dataFrame is created. Filtering and saving data by room...&#39;</span><span class="p">)</span>
+
+<span class="c1"># Outdoor climate data</span>
+<span class="n">outdoor_data</span> <span class="o">=</span> <span class="n">frames</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+    <span class="n">items</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;WEATHERS_TEMP&#39;</span><span class="p">,</span> <span class="s1">&#39;WEATHERS_HUM01&#39;</span><span class="p">,</span> <span class="s1">&#39;WEATHERS_ILL_SOUTH&#39;</span><span class="p">,</span> <span class="s1">&#39;WEATHERS_ILL_EAST&#39;</span><span class="p">,</span> <span class="s1">&#39;WEATHERS_ILL_WEST&#39;</span><span class="p">])</span>
+
+<span class="c1"># Separate data for each room</span>
+<span class="n">room_ID</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;K1N0623&#39;</span><span class="p">,</span> <span class="s1">&#39;K1N0605&#39;</span><span class="p">,</span> <span class="s1">&#39;R3N0808&#39;</span><span class="p">,</span> <span class="s1">&#39;R3N0644&#39;</span><span class="p">,</span> <span class="s1">&#39;K1N0624&#39;</span><span class="p">,</span> <span class="s1">&#39;K3N0618&#39;</span><span class="p">,</span> <span class="s1">&#39;R2N0805&#39;</span><span class="p">,</span> <span class="s1">&#39;R3N0634&#39;</span><span class="p">]</span>
+<span class="n">room_dct</span> <span class="o">=</span> <span class="p">{</span><span class="n">room_name</span><span class="p">:</span> <span class="n">frames</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">regex</span><span class="o">=</span><span class="n">room_name</span><span class="p">)</span> <span class="k">for</span> <span class="n">room_name</span> <span class="ow">in</span> <span class="n">room_ID</span><span class="p">}</span>
+
+<span class="c1"># Save df for each room as csv file</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">room_dct</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">val</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;./Files/SCADA_files/SCADA_</span><span class="si">{name}</span><span class="s1">.csv&#39;</span><span class="p">)</span>
+
+<span class="c1"># Save outdoor climate data</span>
+<span class="n">outdoor_data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;./Files/SCADA_files/outdoor.csv&#39;</span><span class="p">)</span>
+
+<span class="n">finish</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Finished in {round(finish-start, 2)} second(s)&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Download <a class="reference download internal" download="" href="_downloads/673d31658c360354e80c76a82ffe1366/read_SCADA_missing.py"><code class="xref download docutils literal notranslate"><span class="pre">read_SCADA_missing.py</span></code></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">contextmanager</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This script is a part of the MOBISTYLE project (2018-2020), data analysis for Deliverable D6.2 at Slovenian demo-case. </span>
+<span class="sd">This script reads the csv files from &#39;SCADA_data&#39; directory. These files are gathered from SFTP server at IRI-UL,</span>
+<span class="sd">contact IRI-UL for further information. </span>
+<span class="sd">This folder contains .csv files with different columns, thus different way of reading is necessary. </span>
+<span class="sd">Resulting pandas DataFrame is stored as csv file.</span>
+<span class="sd">It is further used to update the SCADA csv data, see file &#39;Data Analysis, Slovenia.ipynb&#39;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">change_dir</span><span class="p">(</span><span class="n">destination</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This f-n reads the subfolder path and then returns back to current working directory (cwd).</span>
+<span class="sd">    Args: </span>
+<span class="sd">        destination (str): Subfolder name (that is located in cwd)</span>
+<span class="sd">    Returns: </span>
+<span class="sd">        Location is returned back to cwd after desired computations are completed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">cwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">cwd</span><span class="p">)</span>
+
+
+<span class="c1"># Read file paths from &#39;SCADA_missing&#39; directory</span>
+<span class="n">file_paths</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">with</span> <span class="n">change_dir</span><span class="p">(</span><span class="s1">&#39;SCADA_missing&#39;</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;**/*.csv&#39;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        
+        <span class="c1"># read .csv file paths from sub folder</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="n">file_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+
+<span class="c1"># Convert csv files to DataFrame format and create a list</span>
+<span class="n">df_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span>
+                       <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">,</span> <span class="n">decimal</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+                       <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">file_paths</span><span class="p">]</span>
+
+<span class="c1"># Concatenate DFs</span>
+<span class="n">frame</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">df_list</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Remove NaT dates</span>
+<span class="n">frame</span> <span class="o">=</span> <span class="n">frame</span><span class="p">[</span><span class="o">~</span><span class="n">frame</span><span class="p">[</span><span class="s1">&#39;SOURCE:&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
+
+<span class="c1"># Set DatetimeIndex</span>
+<span class="n">frame</span><span class="p">[</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">frame</span><span class="p">[</span><span class="s1">&#39;SOURCE:&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span>
+                                            <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%d</span><span class="s1">.%m.%Y&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">11</span> <span class="k">else</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1">.%m.%Y %H:%M:%S&#39;</span><span class="p">))</span>
+<span class="n">frame</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">frame</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s1">&#39;SOURCE:&#39;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Filter data from frame by room name and store in a dictionary</span>
+<span class="n">room_lst</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;K1N0623&#39;</span><span class="p">,</span> <span class="s1">&#39;K3N0605&#39;</span><span class="p">,</span> <span class="s1">&#39;R3N0808&#39;</span><span class="p">,</span> <span class="s1">&#39;R3N0644&#39;</span><span class="p">,</span> <span class="s1">&#39;K1N0624&#39;</span><span class="p">,</span> <span class="s1">&#39;K3N0618&#39;</span><span class="p">,</span> <span class="s1">&#39;R2N0805&#39;</span><span class="p">,</span> <span class="s1">&#39;R3N0634&#39;</span><span class="p">,</span> <span class="s1">&#39;R2N0634&#39;</span><span class="p">]</span>
+
+<span class="n">missing_scada</span> <span class="o">=</span> <span class="p">{</span><span class="n">room_name</span><span class="p">:</span> <span class="n">frame</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">regex</span><span class="o">=</span><span class="n">room_name</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">room_name</span> <span class="ow">in</span> <span class="n">room_lst</span><span class="p">}</span>
+
+<span class="n">room_dct</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">room_name</span> <span class="ow">in</span> <span class="n">room_lst</span><span class="p">:</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">missing_scada</span><span class="p">[</span><span class="n">room_name</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c1"># Rename columns as in original SCADA data prepared by read_csv_SL.py and load_scada() function</span>
+    <span class="n">col_labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()]</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">col_labels</span>
+    <span class="n">df1</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_AV_Temp_prostora&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_CV_TEMP&#39;</span><span class="p">,</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_AV_Sp_Tpr_Aktivna&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_SP_TEMPR_ACT&#39;</span><span class="p">,</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_AO_DO4_Ventil_FC_HL&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_FC_HL&#39;</span><span class="p">,</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_AO_DO5_Ventil_RAD_GR&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_RAD_HV&#39;</span><span class="p">,</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_AV_Hitrost_ventilator&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_FC_SPEED&#39;</span><span class="p">,</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_AV_Stikalo_ventilator&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_FC_SWITCH&#39;</span><span class="p">,</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_AV_Dnevni_rezim&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_MODE&#39;</span><span class="p">,</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_AV_Temp_Rezim&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_REG_TEMP&#39;</span><span class="p">,</span>
+                             <span class="p">})</span>
+
+    <span class="c1"># Remove duplicate timestamps</span>
+    <span class="n">df1</span> <span class="o">=</span> <span class="n">df1</span><span class="p">[</span><span class="o">~</span><span class="n">df1</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()]</span>
+
+    <span class="c1"># Sort DF</span>
+    <span class="n">df1</span><span class="o">.</span><span class="n">sort_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Extract room occupied and window opening data from _MODE column</span>
+    <span class="c1"># In _MODE column(&#39;0&#39;,&#39;4&#39; means room is occupied, &#39;4&#39; - window open)</span>
+    <span class="c1"># Note: In room K1N0623 _OCC sensor is not working properly</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">df1</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_MODE&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">df1</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_MODE&#39;</span><span class="p">]</span>
+    <span class="n">df1</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_OCC&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">s</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">s</span> <span class="o">==</span> <span class="mi">4</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">df1</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_WINDOW&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">s</span> <span class="o">==</span> <span class="mi">4</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">df1</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_WINDOW_Openings&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df1</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_WINDOW&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span>
+
+    <span class="n">room_dct</span><span class="p">[</span><span class="n">room_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">df1</span>
+
+<span class="c1"># Files folder (to store resulting files for each room)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./Files&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./Files/SCADA_missing_files&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Save df for each room as csv file</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">room_dct</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">val</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;./Files/SCADA_missing_files/SCADA_missing_</span><span class="si">{name}</span><span class="s1">.csv&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="inap-data">
+<h2>INAP data<a class="headerlink" href="#inap-data" title="Permalink to this headline">¶</a></h2>
+<p>Download <a class="reference download internal" download="" href="_downloads/ddabc821dd1ae42cf66a825b17a3253b/read_INAP.py"><code class="xref download docutils literal notranslate"><span class="pre">read_INAP.py</span></code></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="k">import</span> <span class="n">tqdm</span>
+
+
+<span class="k">def</span> <span class="nf">read_inap</span><span class="p">(</span><span class="n">room_name</span><span class="o">=</span><span class="s1">&#39;K1N0624&#39;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="s1">&#39;2018-02-01&#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;2018-03-01&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to download Indoor Environmental Quality (IEQ) data monitored by INAP sensors in SL demo-case</span>
+<span class="sd">    using IRI-UL web api. You may need to update the token if the current one is expired (contact IRI-UL).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        room_name (str): Room identification.</span>
+<span class="sd">        start (str): Start date as a date string object.</span>
+<span class="sd">        end (str): End date as a date string object.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        df (pandas DataFrame object): IEQ data (CO2, temperature, relative humidity, VOC).</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        df_R3N0808 = read_inap(&#39;R3N0808&#39;, &#39;2018-02-01&#39;, &#39;2018-03-01&#39;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Room INAP sensor id dictionary</span>
+    <span class="n">sensor_id</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;R3N0808&#39;</span><span class="p">:</span> <span class="s1">&#39;00681B5B&#39;</span><span class="p">,</span> <span class="s1">&#39;R3N0644&#39;</span><span class="p">:</span> <span class="s1">&#39;00682753&#39;</span><span class="p">,</span> <span class="s1">&#39;K1N0623&#39;</span><span class="p">:</span> <span class="s1">&#39;0068224F&#39;</span><span class="p">,</span> <span class="s1">&#39;K3N0605&#39;</span><span class="p">:</span> <span class="s1">&#39;0068272C&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;R2N0805&#39;</span><span class="p">:</span> <span class="s1">&#39;0029DC18&#39;</span><span class="p">,</span> <span class="s1">&#39;R2N0634&#39;</span><span class="p">:</span> <span class="s1">&#39;00681B21&#39;</span><span class="p">,</span> <span class="s1">&#39;K1N0624&#39;</span><span class="p">:</span> <span class="s1">&#39;000CC736&#39;</span><span class="p">,</span> <span class="s1">&#39;K3N0618&#39;</span><span class="p">:</span> <span class="s1">&#39;00681A09&#39;</span><span class="p">}</span>
+    <span class="c1"># Selected room sensor id</span>
+    <span class="n">ids</span> <span class="o">=</span> <span class="n">sensor_id</span><span class="p">[</span><span class="n">room_name</span><span class="p">]</span>
+
+    <span class="c1"># Create URL with correct parameters (contact IRI-UL to get token)</span>
+    <span class="n">start_date</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{start}</span><span class="s1">T00:00:00Z&#39;</span>
+    <span class="n">end_date</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{end}</span><span class="s1">T23:59:59Z&#39;</span>
+    <span class="n">token</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;http://52.211.97.129:8080/api/sensors/data?token=</span><span class="si">{token}</span><span class="s1">&amp;id=</span><span class="si">{ids}</span><span class="s1">&amp;startDate=</span><span class="si">{start_date}</span><span class="s1">&amp;endDate=</span><span class="si">{end_date}</span><span class="s1">&#39;</span>
+
+    <span class="c1"># Connect to IRI-UL INAP sensor api</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Check connection status</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Room </span><span class="si">{room_name}</span><span class="s1">: Connection is good!&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">r</span> <span class="k">else</span> <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">An error has occurred.&#39;</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;INAP_chunks.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">txt</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="mi">1024</span><span class="p">):</span>
+
+            <span class="c1"># writing one chunk at a time to txt file</span>
+            <span class="k">if</span> <span class="n">chunk</span><span class="p">:</span>
+                <span class="n">txt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;INAP_chunks.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f_contents</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+
+    <span class="c1"># Convert api response to DataFrame object</span>
+    <span class="n">lst</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">f_contents</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">lst</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;measurements&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">lst</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">ids</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Sensor id in response do not match&#39;</span><span class="p">)</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;interupt&#39;</span><span class="p">,</span> <span class="s1">&#39;rgbw&#39;</span><span class="p">,</span> <span class="s1">&#39;score&#39;</span><span class="p">,</span> <span class="s1">&#39;sound&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">&#39;timeStamp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;timeStamp&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;timeStamp&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{room_name}</span><span class="s1">_INAP_</span><span class="si">{col}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s1">&#39;df&#39;</span> <span class="ow">in</span> <span class="nb">locals</span><span class="p">():</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;INAP_chunks.txt&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;DataFrame is not created&#39;</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Room </span><span class="si">{room_name}</span><span class="s1">: Data from </span><span class="si">{start}</span><span class="s1"> to </span><span class="si">{end}</span><span class="s1"> is downloaded.&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">df</span>
+
+
+<span class="c1"># Divide the length of the period and download data one month at a time (to avoid web api closing the connection)</span>
+<span class="n">dates1</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="s1">&#39;2018-04-1&#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;2019-03-1&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;MS&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="n">dates2</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="s1">&#39;2018-04-1&#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;2019-03-1&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;M&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="n">date_lst</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">dates1</span><span class="p">,</span> <span class="n">dates2</span><span class="p">))</span>
+
+<span class="c1"># Files folder (data for each room)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./Files&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./Files/INAP_files&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Room list to perform data analysis on. Room R2N0805 INAP sensor id is not working</span>
+<span class="c1"># room_lst = [&#39;K3N0605&#39;, &#39;K1N0623&#39;, &#39;R3N0808&#39;, &#39;R3N0644&#39;, &#39;K1N0624&#39;, &#39;K3N0618&#39;, &#39;R2N0634&#39;]</span>
+<span class="n">room_lst</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;R2N0805&#39;</span><span class="p">]</span>
+
+<span class="c1"># Collect the data and save it for all rooms in room_lst</span>
+<span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">room_lst</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;Room(s)&#39;</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">leave</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    
+    <span class="c1"># Append only new data to existing files</span>
+    <span class="c1"># INAP_data = pd.read_csv(f&#39;./INAP_data/INAP_{name}.csv&#39;, parse_dates=True, index_col=&#39;Timestamp&#39;)</span>
+    <span class="c1"># df_stack = read_inap(name, &#39;2019-11-01&#39;, &#39;2019-12-2&#39;).resample(&#39;15Min&#39;).mean()</span>
+    <span class="c1"># INAP_data = INAP_data.append(df_stack, sort=False)</span>
+    
+    <span class="c1"># load data from beginning</span>
+    <span class="n">INAP_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">read_inap</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">date</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">date</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">date</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">date_lst</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;Data download&#39;</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">leave</span><span class="o">=</span><span class="kc">True</span><span class="p">)])</span>
+    <span class="n">INAP_data</span> <span class="o">=</span> <span class="n">INAP_data</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">&#39;15Min&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    
+    <span class="n">INAP_data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;./Files/INAP_files/INAP_</span><span class="si">{name}</span><span class="s1">.csv&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Room </span><span class="si">{name}</span><span class="s1">: Data is saved.&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="mobistyle-expert-tool-data">
+<h3>MOBISTYLE Expert Tool data<a class="headerlink" href="#mobistyle-expert-tool-data" title="Permalink to this headline">¶</a></h3>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">MOBISTYLE</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mobistyle.html">MOBISTYLE concept</a></li>
+<li class="toctree-l1"><a class="reference internal" href="demo.html">Demonstration building</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plots.html">Indoor climate</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="code.html">Code blocks</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Reading Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="loading.data.html">Loading data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plotting.data.html">Plotting data</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="contact.html">Contact information</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="code.html">Code blocks</a><ul>
+      <li>Previous: <a href="code.html" title="previous chapter">Code blocks</a></li>
+      <li>Next: <a href="loading.data.html" title="next chapter">Loading data</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Sandijs Vasilevskis.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/reading.data.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

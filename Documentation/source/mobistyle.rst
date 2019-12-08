@@ -13,6 +13,7 @@ Behavior change is achieved through awareness campaigns, which encourage users t
    :scale: 60%
    :target: `MOBISTYLE`_
 
+.. _ict-solutions:
 
 ICT-solutions
 -------------
