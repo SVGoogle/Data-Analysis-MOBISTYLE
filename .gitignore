@@ -2,6 +2,9 @@
 /*
 # Except this file
 !.gitignore
+!read_INAP.py
+!read_SCADA.py
+!read_SCADA_missing.py
 # Except folders
 !Documentation/
 !Results/
