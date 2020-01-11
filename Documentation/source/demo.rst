@@ -6,9 +6,14 @@ Demonstration building
 This documentation represents the monitoring campaign at the offices of university building in Slovenia `IRI-UL`_.
 
 .. image:: images/SI_University.png
-   :scale: 30%
+   :scale: 25%
    :target: `IRI-UL`_
 
+Here is a short interview with an employee that participated in the MOBISTYLE project (remember to click subtitles):
+
+.. raw:: html
+
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/jwieVTpdKFY" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 See table :ref:`room-info` for a more detailed information about the room and ICT solution implementation dates.
 

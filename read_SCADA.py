@@ -2,6 +2,7 @@ import os
 from contextlib import contextmanager
 import glob
 import pandas as pd
+import numpy as np
 import time
 from tqdm import tqdm
 
@@ -69,6 +70,10 @@ print('\nSCADA dataFrame is created. Filtering and saving data by room...')
 outdoor_data = frames.filter(
     items=['WEATHERS_TEMP', 'WEATHERS_HUM01', 'WEATHERS_ILL_SOUTH', 'WEATHERS_ILL_EAST', 'WEATHERS_ILL_WEST'])
 
+# Correction for SCADA weather data Temp
+outdoor_data['WEATHERS_TEMP'].replace({'Error': np.nan}, inplace=True)
+outdoor_data['WEATHERS_TEMP'].astype('float64')
+
 # Separate data for each room
 room_ID = ['K1N0623', 'K1N0605', 'R3N0808', 'R3N0644', 'K1N0624', 'K3N0618', 'R2N0805', 'R3N0634']
 room_dct = {room_name: frames.filter(regex=room_name) for room_name in room_ID}
@@ -78,6 +83,7 @@ for name, val in room_dct.items():
     val.to_csv(f'./Files/SCADA_files/SCADA_{name}.csv')
 
 # Save outdoor climate data
+# N.B. There is another outdoor climate source which is used in the analysis due to less missing data
 outdoor_data.to_csv('./Files/SCADA_files/outdoor.csv')
 
 finish = time.perf_counter()

@@ -1,7 +1,7 @@
-.. _code-blocks:
+.. _code:
 
-Code blocks
-===========
+Code
+====
 
 Data for Slovenian analysis is combined from various data sources with different file type and column layout:
 

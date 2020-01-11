@@ -1,11 +1,20 @@
 User behavior
--------------
-Window openings
-~~~~~~~~~~~~~~~
-.. image:: ../../Results/R3N0808/monthly_window_time_R3N0808.png
-.. image:: ../../Results/R3N0808/monthly_window_openings_R3N0808.png
-.. image:: ../../Results/R3N0808/window_room_use_R3N0808.png
+=============
+Room use
+--------
+.. image:: ../../Results/Figures/time_occ_all_rooms.png
+.. image:: ../../Results/Figures/heat_occ_all_rooms.png
+.. image:: ../../Results/Figures/cool_occ_all_rooms.png
 
-Room Setpoint regulation
-~~~~~~~~~~~~~~~~~~~~~~~~
-.. image:: ../../Results/R3N0808/plot_sp_tempr_act_R3N0808.png
+Window openings
+---------------
+.. image:: ../../Results/Figures/window_all_rooms.png
+.. image:: ../../Results/Figures/window_all_rooms_heating.png
+.. image:: ../../Results/Figures/window_all_rooms_cooling.png
+
+Room Temperature Setpoint Regulation
+------------------------------------
+.. image:: ../../Results/Figures/sp_all_rooms.png
+.. image:: ../../Results/Figures/sp_heat_all_rooms.png
+.. image:: ../../Results/Figures/sp_cool_all_rooms.png
+

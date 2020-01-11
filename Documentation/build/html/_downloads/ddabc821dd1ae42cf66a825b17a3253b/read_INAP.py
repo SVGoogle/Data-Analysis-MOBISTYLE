@@ -99,6 +99,7 @@ for name in tqdm(room_lst, desc='Room(s)', position=0, leave=True):
     # load data from beginning
     INAP_data = pd.concat([read_inap(name, date[0], date[1]) for date in tqdm(date_lst, desc='Data download', position=1, leave=True)])
     INAP_data = INAP_data.resample('15Min').mean()
+    INAP_data = INAP_data.interpolate(limit=8, limit_direction='both', limit_area='inside')
     
     INAP_data.to_csv(f'./Files/INAP_files/INAP_{name}.csv')
     print(f'Room {name}: Data is saved.')

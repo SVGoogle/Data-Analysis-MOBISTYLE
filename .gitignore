@@ -8,3 +8,4 @@
 # Except folders
 !Documentation/
 !Results/
+!Results/Figures

@@ -13,6 +13,10 @@ Behavior change is achieved through awareness campaigns, which encourage users t
    :scale: 60%
    :target: `MOBISTYLE`_
 
+.. image:: images/mainlogo-blue-med.png
+   :scale: 50%
+   :target: `MOBISTYLE`_
+
 .. _ict-solutions:
 
 ICT-solutions

@@ -24,8 +24,8 @@ def change_dir(destination):
     Returns: 
         Location is returned back to cwd after desired computations are completed
     """
+    cwd = os.getcwd()
     try:
-        cwd = os.getcwd()
         os.chdir(destination)
         yield
     finally:
@@ -43,25 +43,44 @@ with change_dir('SCADA_missing'):
         file_paths.append(file_path)
 
 
+# Change date format
+def date_parser(date):
+    try:
+        if len(date) < 11:
+            return datetime.strptime(date, '%d.%m.%Y')
+        else:
+            return datetime.strptime(date, '%d.%m.%Y %H:%M:%S')
+    except TypeError:
+        return pd.NaT
+
+
 # Convert csv files to DataFrame format and create a list
-df_list = [pd.read_csv(file_path,
-                       sep=';', decimal=',', header=0, skiprows=[1, 2, 3],
-                       parse_dates=True) for file_path in file_paths]
+df_list = []
+for file_path in file_paths:
+    df_list.append(
+        (pd
+         .read_csv(file_path,
+                   sep=';',
+                   decimal=',',
+                   header=0,
+                   skiprows=[1, 2, 3],
+                   parse_dates=['SOURCE:'],
+                   date_parser=date_parser)
+         .rename(columns={'SOURCE:': 'Timestamp'})
+         .drop_duplicates(subset=['Timestamp'])
+         .dropna(subset=['Timestamp'])
+         .set_index('Timestamp')
+         .resample('15T')
+         .nearest()
+         )
+    )
 
 # Concatenate DFs
-frame = pd.concat(df_list, ignore_index=True, sort=False)
+frame = pd.concat(df_list, sort=False)
 
-# Remove NaT dates
-frame = frame[~frame['SOURCE:'].isna()]
-
-# Set DatetimeIndex
-frame['Timestamp'] = frame['SOURCE:'].apply(lambda x:
-                                            datetime.strptime(x, '%d.%m.%Y') if len(x) < 11 else datetime.strptime(x,'%d.%m.%Y %H:%M:%S'))
-frame.set_index('Timestamp', inplace=True)
-frame.drop(['SOURCE:'], axis=1, inplace=True)
 
 # Filter data from frame by room name and store in a dictionary
-room_lst = ['K1N0623', 'K3N0605', 'R3N0808', 'R3N0644', 'K1N0624', 'K3N0618', 'R2N0805', 'R3N0634', 'R2N0634']
+room_lst = ['K1N0623', 'K3N0605', 'R3N0808', 'R3N0644', 'K1N0624', 'K3N0618', 'R2N0805', 'R2N0634']
 
 missing_scada = {room_name: frame.filter(regex=room_name).dropna(how='all') for room_name in room_lst}
 
@@ -71,34 +90,29 @@ for room_name in room_lst:
     df = missing_scada[room_name].copy()
 
     # Rename columns as in original SCADA data prepared by read_csv_SL.py and load_scada() function
-    col_labels = [name.split('.')[2] for name in df.columns.tolist()]
+    col_labels = [name.split('.')[2] for name in df.columns]
     df.columns = col_labels
-    df1 = df.rename(columns={f'{room_name}_AV_Temp_prostora': f'{room_name}_CV_TEMP',
-                             f'{room_name}_AV_Sp_Tpr_Aktivna': f'{room_name}_SP_TEMPR_ACT',
-                             f'{room_name}_AO_DO4_Ventil_FC_HL': f'{room_name}_FC_HL',
-                             f'{room_name}_AO_DO5_Ventil_RAD_GR': f'{room_name}_RAD_HV',
-                             f'{room_name}_AV_Hitrost_ventilator': f'{room_name}_FC_SPEED',
-                             f'{room_name}_AV_Stikalo_ventilator': f'{room_name}_FC_SWITCH',
-                             f'{room_name}_AV_Dnevni_rezim': f'{room_name}_MODE',
-                             f'{room_name}_AV_Temp_Rezim': f'{room_name}_REG_TEMP',
-                             })
-
-    # Remove duplicate timestamps
-    df1 = df1[~df1.index.duplicated()]
-
-    # Sort DF
-    df1.sort_index(inplace=True)
+    df = df.rename(columns={
+        f'{room_name}_AV_Temp_prostora': f'{room_name}_CV_TEMP',
+        f'{room_name}_AV_Sp_Tpr_Aktivna': f'{room_name}_SP_TEMPR_ACT',
+        f'{room_name}_AO_DO4_Ventil_FC_HL': f'{room_name}_FC_HL',
+        f'{room_name}_AO_DO5_Ventil_RAD_GR': f'{room_name}_RAD_HV',
+        f'{room_name}_AV_Hitrost_ventilator': f'{room_name}_FC_SPEED',
+        f'{room_name}_AV_Stikalo_ventilator': f'{room_name}_FC_SWITCH',
+        f'{room_name}_AV_Dnevni_rezim': f'{room_name}_MODE',
+        f'{room_name}_AV_Temp_Rezim': f'{room_name}_REG_TEMP',
+                             }).sort_index()
 
     # Extract room occupied and window opening data from _MODE column
-    # In _MODE column('0','4' means room is occupied, '4' - window open)
-    # Note: In room K1N0623 _OCC sensor is not working properly
-    mask = df1[f'{room_name}_MODE'].notna()
-    s = df1.loc[mask, f'{room_name}_MODE']
-    df1.loc[mask, f'{room_name}_OCC'] = np.where((s == 0) | (s == 4), 1, 0)
-    df1.loc[mask, f'{room_name}_WINDOW'] = np.where((s == 4), 1, 0)
-    df1.loc[mask, f'{room_name}_WINDOW_Openings'] = df1.loc[mask, f'{room_name}_WINDOW'].diff()
+    # In _MODE column '0' means room is occupied, '4' - window open
+    # N.B.: In room K1N0623 _OCC sensor is not working properly
+    mask = df[f'{room_name}_MODE'].notna()
+    s = df.loc[mask, f'{room_name}_MODE']
+    df.loc[mask, f'{room_name}_OCC'] = np.where((s == 0) | (s == 4), 1, 0)
+    df.loc[mask, f'{room_name}_WINDOW'] = np.where((s == 4), 1, 0)
+    df.loc[mask, f'{room_name}_WINDOW_Openings'] = df.loc[mask, f'{room_name}_WINDOW'].diff()
 
-    room_dct[room_name] = df1
+    room_dct[room_name] = df
 
 # Files folder (to store resulting files for each room)
 os.makedirs('./Files', exist_ok=True)

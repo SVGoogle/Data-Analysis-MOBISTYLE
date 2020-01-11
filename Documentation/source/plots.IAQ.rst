@@ -6,8 +6,6 @@ See table :ref:`Comfort categories <comfort-categories>` for the Indoor Air Qual
 CO2 concentration levels
 ------------------------
 
-.. image:: ../../Results/R3N0808/boxplot_monthly_co2_R3N0808.png
+.. image:: ../../Results/Figures/comf_co2_all_rooms_and_period.png
 
-Comfort categories 
-------------------
-.. image:: ../../Results/R3N0808/comf_co2_R3N0808_occ.png
+
