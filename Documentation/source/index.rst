@@ -26,7 +26,7 @@ Table Of Contents
    plots
    code  
    contact
-   license
+   
 
 
 Indices and tables
