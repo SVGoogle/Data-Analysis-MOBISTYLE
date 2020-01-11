@@ -42,6 +42,7 @@ IV-	 <19,0  	    <22,0       	<20
    :maxdepth: 1
    :caption: Table Of Contents:
    
+   plots.outdoor
    plots.temp
    plots.IAQ
    plots.behavior
