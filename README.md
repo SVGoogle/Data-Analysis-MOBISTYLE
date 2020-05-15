@@ -3,6 +3,7 @@ This repository contains files that are relevant to EU H2020 project MOBISTYLE, 
 
 ## Documentation
 Documentation and figures from the measurement results can be found here [MOBISTYLE Data Analysis ](https://data-analysis-mobistyle.readthedocs.io/en/latest/).
+One office room analysis, can be found here: [Visualization example](https://github.com/SVGoogle/EDA-project)
 
 ## About MOBISTYLE
 This EU H2020 project is focused on improving indoor air quality and user behavior by using modern and specially developed ICT solutions like the mobile game app or dashboard visullisation app. Building energy savings, good indoor air quality and improving health related issues associated with staying inside buildings are the main concerns of this project.
