@@ -1,5 +1,5 @@
 # Data Analysis MOBISTYLE
-This repository contains files that are relevant to EU H2020 project MOBISTYLE, namely Slovenian demo-case sensor measurements. Some of the results are used in the Deliverable D6.2 "Data on energy use and impact on energy use of the awareness and information campaigns". This demo-case represents indoor climate measeurements in 8 office spaces at the building of University of Ljubljana.
+This repository contains files that are relevant to EU Horizon 2020 project MOBISTYLE, namely Slovenian demo-case sensor measurements. Some of the results are used in the Deliverable D6.2 "Data on energy use and impact on energy use of the awareness and information campaigns". This demo-case represents 2 year long indoor climate measeurements in 8 office spaces at the building of University of Ljubljana in Slovenia.
 
 ## Documentation
 Documentation and figures from the measurement results can be found here [MOBISTYLE Data Analysis ](https://data-analysis-mobistyle.readthedocs.io/en/latest/).
